@@ -46,7 +46,7 @@ app.post(`${PREFIX}/auth/register`, async (req, res) => {
     const exists = await prisma.user.findUnique({ where: { email } });
     if (exists) return res.status(409).json({ message: 'Email already registered' });
     const passwordHash = await bcrypt.hash(password, 12);
-    const user = await prisma.user.create({ data: { email, passwordHash, fullName, emailVerified: false, subscriptionTier: 'free', subscriptionStatus: 'active', onboardingCompleted: false, settings: {} } });
+    const user = await prisma.user.create({ data: { email, passwordHash, fullName, emailVerified: false, subscriptionTier: 'free', subscriptionStatus: 'active' } });
     const tokens = generateTokens(user.id, user.email);
     res.status(201).json({ user: { id: user.id, email: user.email, fullName: user.fullName }, ...tokens });
   } catch (e: any) { res.status(500).json({ message: e.message }); }
