@@ -50,7 +50,7 @@ export default async (req: any, res: any) => {
     res.status(500).json({
       error: 'Bootstrap failed',
       message: error?.message,
-      stack: error?.stack?.split('\n').slice(0, 5),
+      stack: error?.stack?.split('\n').slice(0, 8),
     });
   }
 };

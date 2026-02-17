@@ -19,13 +19,7 @@ export class PrismaService
   }
 
   async onModuleInit() {
-    try {
-      await this.$connect();
-      this.logger.log('Database connected');
-    } catch (error) {
-      this.logger.error('Database connection failed:', error);
-      throw error;
-    }
+    this.logger.log('Prisma ready (lazy connect on first query)');
   }
 
   async onModuleDestroy() {
