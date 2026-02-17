@@ -1,0 +1,602 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id                 String    @id @default(uuid())
+  email              String    @unique
+  emailVerified      Boolean   @default(false)
+  passwordHash       String?
+  phone              String?
+  fullName           String?
+  avatarUrl          String?
+  dateOfBirth        DateTime?
+  address            Json?
+  preferences        Json?
+  subscriptionTier   String    @default("free")
+  subscriptionStatus String?
+  stripeCustomerId   String?
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  lastLoginAt DateTime?
+  deletedAt   DateTime?
+
+  pets             Pet[]
+  diaryEntries     DiaryEntry[]
+  healthRecords    HealthRecord[]
+  aiConversations  AiConversation[]
+  litterPosts      LitterPost[]
+  subscriptions    Subscription[]
+  orders           Order[]
+  notificationLogs NotificationLog[]
+
+  @@index([email])
+  @@index([subscriptionTier, subscriptionStatus])
+}
+
+model Pet {
+  id                 String    @id @default(uuid())
+  ownerId            String
+  owner              User      @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  name               String
+  species            String
+  breed              String?
+  breedCategory      String?
+  sex                String?
+  birthdate          DateTime?
+  estimatedAgeMonths Int?
+  microchipNumber    String?   @unique
+  pedigreeNumber     String?
+
+  weightKg           Float[]
+  weightRecordedAt   DateTime[]
+  heightCm           Float?
+
+  coatColor          String?
+  coatType           String?
+  distinctiveMarks   String?
+  avatarUrl          String?
+  photos             Json?
+
+  insuranceProvider     String?
+  insurancePolicyNumber String?
+  insuranceExpiry       DateTime?
+
+  status          String    @default("active")
+  deceasedAt      DateTime?
+  memorialMessage String?
+
+  aiPersonalityProfile Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  collaborators    PetCollaborator[]
+  healthRecords    HealthRecord[]
+  vaccinations     Vaccination[]
+  appointments     Appointment[]
+  medications      Medication[]
+  feedingRecords   FeedingRecord[]
+  careActivities   CareActivity[]
+  diaryEntries     DiaryEntry[]
+  aiConversations  AiConversation[]
+  litterMemberships LitterMember[]
+  reminders        Reminder[]
+
+  @@index([ownerId])
+  @@index([species, breed])
+  @@index([microchipNumber])
+}
+
+model PetCollaborator {
+  id         String    @id @default(uuid())
+  petId      String
+  pet        Pet       @relation(fields: [petId], references: [id], onDelete: Cascade)
+  userId     String
+  role       String
+  permissions Json?
+  invitedBy  String?
+  invitedAt  DateTime  @default(now())
+  acceptedAt DateTime?
+
+  @@unique([petId, userId])
+}
+
+model HealthRecord {
+  id          String    @id @default(uuid())
+  petId       String
+  pet         Pet       @relation(fields: [petId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User      @relation(fields: [userId], references: [id])
+
+  recordType  String
+  recordDate  DateTime
+  vetClinicId String?
+  vetClinic   VetClinic? @relation(fields: [vetClinicId], references: [id])
+  vetName     String?
+
+  title       String
+  description String?
+  diagnosis   String?
+  treatment   String?
+  medications Json?
+  attachments Json?
+
+  nextAppointmentDate DateTime?
+  followUpNotes       String?
+
+  cost         Float?
+  costCurrency String @default("EUR")
+
+  aiExtractedData Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([petId, recordDate])
+  @@index([recordType])
+}
+
+model Vaccination {
+  id              String    @id @default(uuid())
+  petId           String
+  pet             Pet       @relation(fields: [petId], references: [id], onDelete: Cascade)
+
+  vaccineName     String
+  vaccineType     String?
+  batchNumber     String?
+  vaccinationDate DateTime
+  expiryDate      DateTime?
+  nextDueDate     DateTime
+
+  administeredBy  String?
+  clinicId        String?
+  clinic          VetClinic? @relation(fields: [clinicId], references: [id])
+  healthRecordId  String?
+
+  reminderSent   Boolean   @default(false)
+  reminderSentAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([petId, nextDueDate])
+}
+
+model Appointment {
+  id               String    @id @default(uuid())
+  petId            String
+  pet              Pet       @relation(fields: [petId], references: [id], onDelete: Cascade)
+  clinicId         String?
+  clinic           VetClinic? @relation(fields: [clinicId], references: [id])
+
+  appointmentType  String
+  appointmentDate  DateTime
+  durationMinutes  Int       @default(30)
+  vetName          String?
+  reason           String?
+
+  status           String    @default("scheduled")
+
+  reminderSent     Boolean   @default(false)
+  reminderSentAt   DateTime?
+
+  notes   String?
+  cost    Float?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([petId, appointmentDate])
+  @@index([clinicId, appointmentDate])
+}
+
+model Medication {
+  id        String    @id @default(uuid())
+  petId     String
+  pet       Pet       @relation(fields: [petId], references: [id], onDelete: Cascade)
+
+  name      String
+  dosage    String
+  frequency String
+  times     String[]
+  startDate DateTime
+  endDate   DateTime?
+
+  notes String?
+
+  createdAt DateTime @default(now())
+
+  doses MedicationDose[]
+
+  @@index([petId, startDate])
+}
+
+model MedicationDose {
+  id           String     @id @default(uuid())
+  medicationId String
+  medication   Medication @relation(fields: [medicationId], references: [id], onDelete: Cascade)
+
+  scheduledAt DateTime
+  givenAt     DateTime?
+  skipped     Boolean   @default(false)
+  notes       String?
+
+  @@index([medicationId, scheduledAt])
+}
+
+model FeedingRecord {
+  id          String   @id @default(uuid())
+  petId       String
+  pet         Pet      @relation(fields: [petId], references: [id], onDelete: Cascade)
+
+  recordDate  DateTime
+  mealTime    DateTime
+  foodBrand   String?
+  foodType    String?
+  portionGrams Float?
+  portionKcal Int?
+  supplements Json?
+  notes       String?
+
+  createdAt DateTime @default(now())
+
+  @@index([petId, recordDate])
+}
+
+model CareActivity {
+  id               String   @id @default(uuid())
+  petId            String
+  pet              Pet      @relation(fields: [petId], references: [id], onDelete: Cascade)
+
+  activityType     String
+  activityDate     DateTime
+  productUsed      String?
+  durationMinutes  Int?
+  nextDueDate      DateTime?
+  notes            String?
+  cost             Float?
+  performedBy      String?
+  professionalName String?
+
+  createdAt DateTime @default(now())
+
+  @@index([petId, activityType, activityDate])
+}
+
+model VetClinic {
+  id               String  @id @default(uuid())
+  name             String
+  address          Json
+  phone            String?
+  email            String?
+  website          String?
+  openingHours     Json?
+  services         String[]
+  rating           Float?
+  totalReviews     Int     @default(0)
+  vetbridgeEnabled Boolean @default(false)
+  stripeAccountId  String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  healthRecords HealthRecord[]
+  vaccinations  Vaccination[]
+  appointments  Appointment[]
+}
+
+model DiaryEntry {
+  id         String   @id @default(uuid())
+  petId      String
+  pet        Pet      @relation(fields: [petId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+
+  entryType  String
+  entryDate  DateTime
+  title      String?
+  content    String?
+  media      Json?
+  mood       String?
+  tags       String[]
+  visibility String   @default("private")
+
+  reactions    Json @default("{}")
+  commentCount Int  @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  comments DiaryComment[]
+
+  @@index([petId, entryDate])
+  @@index([visibility])
+}
+
+model DiaryComment {
+  id           String     @id @default(uuid())
+  diaryEntryId String
+  diaryEntry   DiaryEntry @relation(fields: [diaryEntryId], references: [id], onDelete: Cascade)
+  authorId     String
+  content      String
+
+  createdAt DateTime @default(now())
+
+  @@index([diaryEntryId, createdAt])
+}
+
+model Milestone {
+  id            String    @id @default(uuid())
+  petId         String
+  milestoneType String
+  title         String
+  description   String?
+  achievedAt    DateTime?
+  isCustom      Boolean   @default(false)
+
+  createdAt DateTime @default(now())
+
+  @@index([petId, milestoneType])
+}
+
+model AiConversation {
+  id                String   @id @default(uuid())
+  userId            String
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  petId             String?
+  pet               Pet?     @relation(fields: [petId], references: [id], onDelete: SetNull)
+
+  conversationTitle String?
+  lastMessageAt     DateTime @default(now())
+  messageCount      Int      @default(0)
+
+  createdAt DateTime @default(now())
+
+  messages AiMessage[]
+
+  @@index([userId])
+  @@index([petId])
+}
+
+model AiMessage {
+  id             String         @id @default(uuid())
+  conversationId String
+  conversation   AiConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  role    String
+  content String
+  metadata Json?
+
+  createdAt DateTime @default(now())
+
+  @@index([conversationId, createdAt])
+}
+
+model LitterGroup {
+  id             String    @id @default(uuid())
+  name           String
+  description    String?
+  birthDate      DateTime?
+  breed          String?
+  breederName    String?
+  breederContact String?
+  coverPhotoUrl  String?
+  privacy        String    @default("private")
+  inviteCode     String    @unique
+  memberCount    Int       @default(0)
+
+  createdById String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  members LitterMember[]
+  posts   LitterPost[]
+}
+
+model LitterMember {
+  id            String      @id @default(uuid())
+  litterGroupId String
+  litterGroup   LitterGroup @relation(fields: [litterGroupId], references: [id], onDelete: Cascade)
+  petId         String
+  pet           Pet         @relation(fields: [petId], references: [id], onDelete: Cascade)
+
+  joinedAt DateTime @default(now())
+
+  @@unique([litterGroupId, petId])
+}
+
+model LitterPost {
+  id            String      @id @default(uuid())
+  litterGroupId String
+  litterGroup   LitterGroup @relation(fields: [litterGroupId], references: [id], onDelete: Cascade)
+  authorId      String
+  author        User        @relation(fields: [authorId], references: [id])
+  petId         String?
+
+  content      String?
+  media        Json?
+  reactions    Json   @default("{}")
+  commentCount Int    @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([litterGroupId, createdAt])
+}
+
+model MarketplaceProduct {
+  id                   String   @id @default(uuid())
+  category             String
+  subcategory          String?
+  name                 String
+  description          String?
+  images               Json?
+  price                Float
+  currency             String   @default("EUR")
+  stockQuantity        Int?
+
+  speciesCompatibility String[]
+  breedRecommendations String[]
+  ageRange             String?
+
+  vendorId     String?
+  affiliateUrl String?
+
+  rating       Float?
+  totalReviews Int     @default(0)
+  isActive     Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([category, isActive])
+}
+
+model Order {
+  id              String @id @default(uuid())
+  userId          String
+  user            User   @relation(fields: [userId], references: [id])
+
+  orderNumber     String @unique
+  status          String
+  items           Json
+  subtotal        Float
+  shippingCost    Float?
+  tax             Float?
+  total           Float
+  shippingAddress Json
+  trackingNumber  String?
+
+  stripePaymentIntentId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, createdAt])
+}
+
+model NewsArticle {
+  id                 String    @id @default(uuid())
+  title              String
+  slug               String    @unique
+  excerpt            String?
+  content            String
+  featuredImageUrl   String?
+  author             String?
+  source             String?
+  category           String?
+  speciesTags        String[]
+  breedTags          String[]
+  readingTimeMinutes Int?
+  externalUrl        String?
+
+  isPublished Boolean   @default(false)
+  publishedAt DateTime?
+  viewsCount  Int       @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isPublished, publishedAt])
+  @@index([category])
+}
+
+model Reminder {
+  id          String    @id @default(uuid())
+  userId      String
+  petId       String?
+  pet         Pet?      @relation(fields: [petId], references: [id], onDelete: Cascade)
+
+  reminderType      String
+  title             String
+  description       String?
+  dueDate           DateTime
+  dueTime           DateTime?
+
+  isRecurring       Boolean @default(false)
+  recurrencePattern String?
+
+  status      String    @default("active")
+  completedAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, dueDate])
+}
+
+model Subscription {
+  id                   String   @id @default(uuid())
+  userId               String
+  user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  stripeSubscriptionId String   @unique
+  stripeCustomerId     String
+  plan                 String
+  status               String
+  currentPeriodStart   DateTime
+  currentPeriodEnd     DateTime
+  cancelAtPeriodEnd    Boolean  @default(false)
+  cancelledAt          DateTime?
+  trialStart           DateTime?
+  trialEnd             DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([stripeSubscriptionId])
+}
+
+model NotificationLog {
+  id               String   @id @default(uuid())
+  userId           String
+  user             User     @relation(fields: [userId], references: [id])
+  notificationType String
+  title            String
+  body             String
+  data             Json?
+
+  sentAt      DateTime  @default(now())
+  deliveredAt DateTime?
+  openedAt    DateTime?
+  fcmMessageId String?
+
+  @@index([userId, sentAt])
+}
+
+model AnalyticsEvent {
+  id              String  @id @default(uuid())
+  userId          String?
+  eventName       String
+  eventProperties Json?
+  deviceInfo      Json?
+  sessionId       String?
+
+  createdAt DateTime @default(now())
+
+  @@index([eventName, createdAt])
+}
+
+model VetBridgeShare {
+  id        String   @id @default(uuid())
+  petId     String
+  clinicId  String?
+  sharedBy  String
+  qrCode    String   @unique
+  expiresAt DateTime?
+  permissions Json?
+  isActive  Boolean  @default(true)
+
+  createdAt DateTime @default(now())
+
+  @@index([petId, isActive])
+  @@index([qrCode])
+}
