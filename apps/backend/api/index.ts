@@ -9,38 +9,56 @@ import { TransformInterceptor } from '../src/common/interceptors/transform.inter
 const server = express();
 
 let cachedApp: any;
+let bootstrapError: any = null;
 
 async function bootstrap() {
   if (cachedApp) return cachedApp;
+  if (bootstrapError) throw bootstrapError;
 
-  const app = await NestFactory.create(AppModule, new ExpressAdapter(server));
+  try {
+    const app = await NestFactory.create(AppModule, new ExpressAdapter(server), {
+      logger: ['error', 'warn'],
+    });
 
-  app.enableCors({
-    origin: '*',
-    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
-    credentials: true,
-  });
+    app.enableCors({
+      origin: '*',
+      methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+      credentials: true,
+    });
 
-  app.setGlobalPrefix('api/v1');
+    app.setGlobalPrefix('api/v1');
 
-  app.useGlobalPipes(
-    new ValidationPipe({
-      whitelist: true,
-      forbidNonWhitelisted: true,
-      transform: true,
-      transformOptions: { enableImplicitConversion: true },
-    }),
-  );
+    app.useGlobalPipes(
+      new ValidationPipe({
+        whitelist: true,
+        forbidNonWhitelisted: true,
+        transform: true,
+        transformOptions: { enableImplicitConversion: true },
+      }),
+    );
 
-  app.useGlobalFilters(new HttpExceptionFilter());
-  app.useGlobalInterceptors(new TransformInterceptor());
+    app.useGlobalFilters(new HttpExceptionFilter());
+    app.useGlobalInterceptors(new TransformInterceptor());
 
-  await app.init();
-  cachedApp = server;
-  return server;
+    await app.init();
+    cachedApp = server;
+    return server;
+  } catch (error) {
+    bootstrapError = error;
+    throw error;
+  }
 }
 
 export default async (req: any, res: any) => {
-  const app = await bootstrap();
-  app(req, res);
+  try {
+    const app = await bootstrap();
+    app(req, res);
+  } catch (error: any) {
+    console.error('Bootstrap error:', error);
+    res.status(500).json({
+      error: 'Server bootstrap failed',
+      message: error.message,
+      stack: process.env.NODE_ENV !== 'production' ? error.stack : undefined,
+    });
+  }
 };
