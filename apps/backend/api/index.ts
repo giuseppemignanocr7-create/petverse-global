@@ -1,13 +1,13 @@
-const { NestFactory } = require('@nestjs/core');
-const { ValidationPipe } = require('@nestjs/common');
-const { ExpressAdapter } = require('@nestjs/platform-express');
-const express = require('express');
-const { AppModule } = require('../dist/src/app.module');
-const { HttpExceptionFilter } = require('../dist/src/common/filters/http-exception.filter');
-const { TransformInterceptor } = require('../dist/src/common/interceptors/transform.interceptor');
+import { NestFactory } from '@nestjs/core';
+import { ValidationPipe } from '@nestjs/common';
+import { ExpressAdapter } from '@nestjs/platform-express';
+import express from 'express';
+import { AppModule } from '../src/app.module';
+import { HttpExceptionFilter } from '../src/common/filters/http-exception.filter';
+import { TransformInterceptor } from '../src/common/interceptors/transform.interceptor';
 
 const server = express();
-let cachedApp = null;
+let cachedApp: any;
 
 async function bootstrap() {
   if (cachedApp) return cachedApp;
@@ -41,15 +41,16 @@ async function bootstrap() {
   return server;
 }
 
-module.exports = async (req, res) => {
+export default async (req: any, res: any) => {
   try {
     const app = await bootstrap();
     app(req, res);
-  } catch (error) {
-    console.error('Bootstrap error:', error);
+  } catch (error: any) {
+    console.error('BOOTSTRAP_ERROR:', error);
     res.status(500).json({
-      error: 'Server bootstrap failed',
-      message: error.message,
+      error: 'Bootstrap failed',
+      message: error?.message,
+      stack: error?.stack?.split('\n').slice(0, 5),
     });
   }
 };
